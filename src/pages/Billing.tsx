@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Search, Eye, CreditCard, DollarSign } from 'lucide-react';
+import { Plus, Search, Eye, CreditCard, DollarSign, Pencil, Trash2 } from 'lucide-react';
 import { Bill, Patient } from '../types';
 import { apiService } from '../services/api';
 import { Button } from '../components/common/Button';
@@ -13,6 +13,7 @@ export const Billing: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [editingBill, setEditingBill] = useState<Bill | null>(null);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -42,21 +43,50 @@ export const Billing: React.FC = () => {
     }
   };
 
-  const handleCreateBill = async (e: React.FormEvent) => {
+  const handleCreateOrUpdateBill = async (e: React.FormEvent) => {
     e.preventDefault();
     const { patientId, description, amount, status, dueDate } = formData;
     if (!patientId || !description || !amount || !dueDate) return;
 
-    await apiService.createBill({
-      patientId,
-      description,
-      amount: parseFloat(amount),
-      status,
-      dueDate
-    });
+    if (editingBill) {
+      await apiService.updateBill(editingBill.id, {
+        patientId,
+        description,
+        amount: parseFloat(amount),
+        status,
+        dueDate
+      });
+    } else {
+      await apiService.createBill({
+        patientId,
+        description,
+        amount: parseFloat(amount),
+        status,
+        dueDate
+      });
+    }
 
     setIsFormOpen(false);
+    setEditingBill(null);
     setFormData({ patientId: '', description: '', amount: '', status: 'pending', dueDate: '' });
+    fetchData();
+  };
+
+  const handleEdit = (bill: Bill) => {
+    setEditingBill(bill);
+    setFormData({
+      patientId: bill.patientId,
+      description: bill.description,
+      amount: bill.amount.toString(),
+      status: bill.status,
+      dueDate: bill.dueDate.slice(0, 10),
+    });
+    setIsFormOpen(true);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!window.confirm('Are you sure you want to delete this bill?')) return;
+    await apiService.deleteBill(id);
     fetchData();
   };
 
@@ -99,7 +129,11 @@ export const Billing: React.FC = () => {
           <h1 className="text-2xl font-bold text-gray-900">Billing</h1>
           <p className="text-gray-600">Manage patient bills and payments</p>
         </div>
-        <Button onClick={() => setIsFormOpen(true)}>
+        <Button onClick={() => {
+          setIsFormOpen(true);
+          setEditingBill(null);
+          setFormData({ patientId: '', description: '', amount: '', status: 'pending', dueDate: '' });
+        }}>
           <Plus size={20} className="mr-2" />
           Create Bill
         </Button>
@@ -181,8 +215,13 @@ export const Billing: React.FC = () => {
                   </span>
                 </td>
                 <td className="px-6 py-4">{format(new Date(bill.dueDate), 'MMM dd, yyyy')}</td>
-                <td className="px-6 py-4">
-                  <Eye size={16} className="text-blue-600 hover:text-blue-900 cursor-pointer" />
+                <td className="px-6 py-4 flex gap-2">
+                  <Button size="sm" variant="ghost" onClick={() => handleEdit(bill)}>
+                    <Pencil size={16} className="mr-1" /> Edit
+                  </Button>
+                  <Button size="sm" variant="danger" onClick={() => handleDelete(bill.id)}>
+                    <Trash2 size={16} className="mr-1" /> Delete
+                  </Button>
                 </td>
               </tr>
             ))}
@@ -190,12 +229,14 @@ export const Billing: React.FC = () => {
         </table>
       </div>
 
-      {/* Create Bill Modal */}
+      {/* Create/Edit Bill Modal */}
       {isFormOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-lg space-y-4">
-            <h2 className="text-lg font-semibold text-gray-900">Create New Bill</h2>
-            <form onSubmit={handleCreateBill} className="space-y-4">
+            <h2 className="text-lg font-semibold text-gray-900">
+              {editingBill ? 'Edit Bill' : 'Create New Bill'}
+            </h2>
+            <form onSubmit={handleCreateOrUpdateBill} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700">Patient</label>
                 <select
@@ -245,10 +286,10 @@ export const Billing: React.FC = () => {
                 required
               />
               <div className="flex justify-end space-x-2">
-                <Button type="button" onClick={() => setIsFormOpen(false)} variant="secondary">
+                <Button type="button" onClick={() => { setIsFormOpen(false); setEditingBill(null); }} variant="secondary">
                   Cancel
                 </Button>
-                <Button type="submit">Save Bill</Button>
+                <Button type="submit">{editingBill ? 'Update Bill' : 'Save Bill'}</Button>
               </div>
             </form>
           </div>
