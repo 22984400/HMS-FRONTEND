@@ -7,12 +7,12 @@ import { Input } from '../components/common/Input';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
 import { DoctorForm } from '../components/doctor/DoctorForm';
 
-
 export const Doctors: React.FC = () => {
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [showForm, setShowForm] = useState(false);
+  const [editingDoctor, setEditingDoctor] = useState<Doctor | null>(null);
 
   useEffect(() => {
     fetchDoctors();
@@ -40,9 +40,14 @@ export const Doctors: React.FC = () => {
     }
   };
 
-  const handleSaveDoctor = (newDoctor: Doctor) => {
-    setDoctors(prev => [...prev, newDoctor]);
+  const handleSaveDoctor = (savedDoctor: Doctor) => {
+    setDoctors(prev =>
+      prev.some(d => d.id === savedDoctor.id)
+        ? prev.map(d => (d.id === savedDoctor.id ? savedDoctor : d))
+        : [...prev, savedDoctor]
+    );
     setShowForm(false);
+    setEditingDoctor(null);
   };
 
   const filteredDoctors = doctors.filter(doctor =>
@@ -66,7 +71,10 @@ export const Doctors: React.FC = () => {
           <h1 className="text-2xl font-bold text-gray-900">Doctors</h1>
           <p className="text-gray-600">Manage medical staff and their information</p>
         </div>
-        <Button onClick={() => setShowForm(true)}>
+        <Button onClick={() => {
+          setShowForm(true);
+          setEditingDoctor(null);
+        }}>
           <Plus size={20} className="mr-2" />
           Add Doctor
         </Button>
@@ -98,7 +106,13 @@ export const Doctors: React.FC = () => {
                 <button className="text-blue-600 hover:text-blue-900">
                   <Eye size={16} />
                 </button>
-                <button className="text-indigo-600 hover:text-indigo-900">
+                <button
+                  className="text-indigo-600 hover:text-indigo-900"
+                  onClick={() => {
+                    setEditingDoctor(doctor);
+                    setShowForm(true);
+                  }}
+                >
                   <Edit size={16} />
                 </button>
                 <button
@@ -136,8 +150,12 @@ export const Doctors: React.FC = () => {
 
       {showForm && (
         <DoctorForm
+          initialData={editingDoctor}
           onSave={handleSaveDoctor}
-          onCancel={() => setShowForm(false)}
+          onCancel={() => {
+            setShowForm(false);
+            setEditingDoctor(null);
+          }}
         />
       )}
     </div>
