@@ -1,6 +1,5 @@
-// MedicalRecords.tsx
 import React, { useEffect, useState } from 'react';
-import { FileText, Search, Plus } from 'lucide-react';
+import { FileText, Search, Plus, Pencil, Trash2 } from 'lucide-react';
 import { Button } from '../components/common/Button';
 import { Input } from '../components/common/Input';
 import { apiService } from '../services/api';
@@ -11,6 +10,7 @@ export const MedicalRecords: React.FC = () => {
   const [records, setRecords] = useState<MedicalRecord[]>([]);
   const [search, setSearch] = useState('');
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [editingRecord, setEditingRecord] = useState<MedicalRecord | null>(null);
 
   const loadRecords = async () => {
     const data = await apiService.getMedicalRecords();
@@ -21,10 +21,20 @@ export const MedicalRecords: React.FC = () => {
     loadRecords();
   }, []);
 
-  // ✅ Accept record and save
   const handleRecordSaved = async (record: Omit<MedicalRecord, 'id' | 'createdAt'>) => {
-    await apiService.createMedicalRecord(record);
+    if (editingRecord) {
+      await apiService.updateMedicalRecord(editingRecord.id, record);
+    } else {
+      await apiService.createMedicalRecord(record);
+    }
     setIsFormOpen(false);
+    setEditingRecord(null);
+    loadRecords();
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!window.confirm('Are you sure you want to delete this record?')) return;
+    await apiService.deleteMedicalRecord(id);
     loadRecords();
   };
 
@@ -40,7 +50,7 @@ export const MedicalRecords: React.FC = () => {
           <h1 className="text-2xl font-bold text-gray-900">Medical Records</h1>
           <p className="text-gray-600">Patient medical history and records</p>
         </div>
-        <Button onClick={() => setIsFormOpen(true)}>
+        <Button onClick={() => { setIsFormOpen(true); setEditingRecord(null); }}>
           <Plus size={20} className="mr-2" />
           Add Record
         </Button>
@@ -70,6 +80,7 @@ export const MedicalRecords: React.FC = () => {
                 <th className="py-2">Treatment</th>
                 <th className="py-2">Notes</th>
                 <th className="py-2">Created</th>
+                <th className="py-2">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -81,6 +92,22 @@ export const MedicalRecords: React.FC = () => {
                   <td className="py-2">{record.treatment || '—'}</td>
                   <td className="py-2">{record.notes || '—'}</td>
                   <td className="py-2">{new Date(record.createdAt).toLocaleDateString()}</td>
+                  <td className="py-2 flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => { setEditingRecord(record); setIsFormOpen(true); }}
+                    >
+                      <Pencil size={16} className="mr-1" /> Edit
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="danger"
+                      onClick={() => handleDelete(record.id)}
+                    >
+                      <Trash2 size={16} className="mr-1" /> Delete
+                    </Button>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -97,11 +124,11 @@ export const MedicalRecords: React.FC = () => {
       )}
 
       {isFormOpen && (
-        <MedicalRecordForm onSave={(newRecord) => {
-  setRecords(prev => [...prev, newRecord]);
-  setShowForm(false);
-}} />
-
+        <MedicalRecordForm
+          record={editingRecord}
+          onSave={handleRecordSaved}
+          onCancel={() => { setIsFormOpen(false); setEditingRecord(null); }}
+        />
       )}
     </div>
   );
