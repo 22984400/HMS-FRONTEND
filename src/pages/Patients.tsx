@@ -22,7 +22,6 @@ export const Patients: React.FC = () => {
     setLoading(true);
     try {
       const data = await apiService.getPatients();
-      console.log('✅ Loaded patients:', data);
       setPatients(data);
       setFiltered(data);
     } catch (error) {
@@ -59,6 +58,21 @@ export const Patients: React.FC = () => {
     }
   };
 
+  const handleEdit = (patient: Patient) => {
+    setEditingPatient(patient);
+    setShowForm(true);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!window.confirm('Are you sure you want to delete this patient?')) return;
+    try {
+      await apiService.deletePatient(id);
+      await fetchPatients();
+    } catch (error) {
+      console.error('❌ Failed to delete patient:', error);
+    }
+  };
+
   return (
     <div className="space-y-6 px-4 sm:px-6 lg:px-8 py-6">
       <div className="flex justify-between items-center">
@@ -88,7 +102,7 @@ export const Patients: React.FC = () => {
       ) : filtered.length === 0 ? (
         <p className="text-gray-600">No patients found.</p>
       ) : (
-        <div className="overflow-x-auto border rounded-lg shadow">
+        <div className="bg-white p-6 rounded-lg shadow-md overflow-x-auto">
           <table className="min-w-full table-auto text-sm text-left">
             <thead className="bg-gray-100 text-gray-700">
               <tr>
@@ -96,6 +110,7 @@ export const Patients: React.FC = () => {
                 <th className="px-4 py-3">Contact</th>
                 <th className="px-4 py-3">Date of Birth</th>
                 <th className="px-4 py-3">Blood Type</th>
+                <th className="px-4 py-3">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -107,6 +122,10 @@ export const Patients: React.FC = () => {
                   <td className="px-4 py-2 text-gray-600">{patient.phoneNumber || '-'}</td>
                   <td className="px-4 py-2 text-gray-600">{patient.dateOfBirth || '-'}</td>
                   <td className="px-4 py-2 text-gray-600">{patient.bloodType || '-'}</td>
+                  <td className="px-4 py-2 flex gap-2">
+                    <Button size="sm" onClick={() => handleEdit(patient)}>Edit</Button>
+                    <Button size="sm" variant="danger" onClick={() => handleDelete(patient.id)}>Delete</Button>
+                  </td>
                 </tr>
               ))}
             </tbody>
